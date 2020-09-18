@@ -6,6 +6,7 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.frizzle.glide.Tool;
+import com.frizzle.glide.pool.BitmapPool;
 import com.frizzle.glide.resource.Value;
 
 import java.io.File;
@@ -80,7 +81,7 @@ public class DiskLruCacheImpl {
     }
 
     // TODO get
-    public Value get(String key) {
+    public Value get(String key, BitmapPool bitmapPool) {
         Tool.checkNotEmpty(key);
 
         InputStream inputStream = null;
@@ -90,7 +91,27 @@ public class DiskLruCacheImpl {
             if (null != snapshot) {
                 Value value = Value.getInstance();
                 inputStream = snapshot.getInputStream(0);// index 不能大于 VALUE_COUNT
-                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+                /*BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true; // 只那图片的周围信息，内置会只获取图片的一部分而已，值获取高宽的信息 outW，outH
+                BitmapFactory.decodeStream(inputStream, null, options);
+                int w = options.outWidth;
+                int h = options.outHeight;*/
+
+                int w = 1920;
+                int h = 1080;
+
+                // 使用复用池，拿去复用图片内存
+                BitmapFactory.Options options2 = new BitmapFactory.Options();
+                Bitmap bitmapPoolResult = bitmapPool.get(w, h, Bitmap.Config.RGB_565);
+                options2.inBitmap = bitmapPoolResult; // 如果我们这里拿到的是null，就不复用
+                options2.inMutable = true;
+                options2.inPreferredConfig = Bitmap.Config.RGB_565;
+                options2.inJustDecodeBounds = false;
+                // inSampleSize:是采样率，当inSampleSize为2时，一个2000 1000的图片，将被缩小为1000 500， 采样率为1 代表和原图宽高最接近
+                options2.inSampleSize = Tool.sampleBitmapSize(options2, w, h);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream, null, options2); // 真正的加载
+
                 value.setmBitmap(bitmap);
                 // 保存key 唯一标识
                 value.setKey(key);

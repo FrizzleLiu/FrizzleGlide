@@ -11,6 +11,8 @@ import com.frizzle.glide.cache.disk.DiskLruCacheImpl;
 import com.frizzle.glide.fragment.LifecycleCallback;
 import com.frizzle.glide.load.LoadDataManager;
 import com.frizzle.glide.load.ResponseListener;
+import com.frizzle.glide.pool.BitmapPool;
+import com.frizzle.glide.pool.BitmapPoolImpl;
 import com.frizzle.glide.resource.Key;
 import com.frizzle.glide.resource.Value;
 import com.frizzle.glide.resource.ValueCallback;
@@ -26,6 +28,7 @@ public class RequestTargetEngine implements LifecycleCallback, ValueCallback, Me
     private ActiveCache activeCache;
     private MermoryCache mermoryCache;
     private DiskLruCacheImpl diskLruCache;
+    private BitmapPool bitmapPool;  // 复用池
     private final int MAX_SIZE = 1024 * 1024 * 60;
     private String path;
     private Context glideContext;
@@ -49,6 +52,10 @@ public class RequestTargetEngine implements LifecycleCallback, ValueCallback, Me
             diskLruCache = new DiskLruCacheImpl();
         }
 
+        //初始化复用池
+        if (null == bitmapPool) {
+            bitmapPool = new BitmapPoolImpl(MAX_SIZE);
+        }
     }
 
     @Override
@@ -110,7 +117,7 @@ public class RequestTargetEngine implements LifecycleCallback, ValueCallback, Me
             return value;
         }
 
-        value = diskLruCache.get(key);
+        value = diskLruCache.get(key, bitmapPool);
         if (null != value) {
             Log.e("Frizzle", "磁盘缓存中取到资源");
             //将磁盘缓存中的元素加入到活动缓存中
@@ -147,10 +154,11 @@ public class RequestTargetEngine implements LifecycleCallback, ValueCallback, Me
     /**
      * @param key
      * @param oldValue 内存缓存回调
+     *                 内存中不再使用添加到复用池
      */
     @Override
     public void entryRemovedMermoryCache(String key, Value oldValue) {
-
+        bitmapPool.put(oldValue.getmBitmap());
     }
 
     /**

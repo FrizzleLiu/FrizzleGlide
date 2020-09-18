@@ -347,4 +347,22 @@ public class Tool {
         inStream.close();
         return outStream.toByteArray();
     }
+
+
+    // 根据maxWidth, maxHeight计算最合适的inSampleSize
+    public static int sampleBitmapSize(BitmapFactory.Options options,
+                                       int maxWidth, int maxHeight) {
+        // raw height and width of image
+        int rawWidth = options.outWidth;
+        int rawHeight = options.outHeight;
+        // calculate best sample size
+        int inSampleSize = 0;
+        if (rawHeight > maxHeight || rawWidth > maxWidth) {
+            float ratioWidth = (float) rawWidth / maxWidth;
+            float ratioHeight = (float) rawHeight / maxHeight;
+            inSampleSize = (int) Math.min(ratioHeight, ratioWidth);
+        }
+        inSampleSize = Math.max(1, inSampleSize);
+        return inSampleSize;
+    }
 }
